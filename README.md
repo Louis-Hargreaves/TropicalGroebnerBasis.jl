@@ -1,2 +1,0 @@
-# TropicalGroebnerBasis.jl
-# TropicalGroebnerBasis.jl
