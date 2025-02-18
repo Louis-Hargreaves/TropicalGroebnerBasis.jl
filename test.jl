@@ -20,10 +20,14 @@ G = [g1, g2, g3]
 G_red = tighten_simulation.(G, Ref(nu_p))
 
 #Define the ordering on homogeneous functions
-M =[-1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 1]
-o1 = matrix_ordering(Rtx, M)
+M1 = [-1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 1]
+o1 = matrix_ordering(Rtx, M1)
 leading_monomial.(G_red, ordering=o1)
 
 #Sort by leading monomial
-G_red = sort(G_red, by = x -> leading_monomial(x, ordering=o1), rev=true)
-leading_monomial(G_red[1], ordering=o1)
+G_sort1 = sort(G_red, by = x -> leading_monomial(x, ordering=o1), rev=true)
+
+#Define an ordering to compare monomials
+M2 = [0 1 0 0; 0 0 1 0; 0 0 0 1; -1 0 0 0]
+o2 = matrix_ordering(Rtx, M2)
+leading_monomial(G_sort1[3], ordering=o2) / leading_monomial(G_sort1[1], ordering=o2)
