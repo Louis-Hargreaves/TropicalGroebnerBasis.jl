@@ -25,9 +25,37 @@ o1 = matrix_ordering(Rtx, M1)
 leading_monomial.(G_red, ordering=o1)
 
 #Sort by leading monomial
-G_sort1 = sort(G_red, by = x -> leading_monomial(x, ordering=o1), rev=true)
+G_sort = sort(G_red, by = x -> leading_monomial(x, ordering=o1), rev=true)
 
 #Define an ordering to compare monomials
 M2 = [0 1 0 0; 0 0 1 0; 0 0 0 1; -1 0 0 0]
 o2 = matrix_ordering(Rtx, M2)
-leading_monomial(G_sort1[3], ordering=o2) / leading_monomial(G_sort1[1], ordering=o2)
+
+#Perform first set of iterations
+print("-------------------\n")
+print(G_sort, "\n")
+print("-------------------\n")
+first_set = function (G_sort)
+    for i in 1:(length(G_sort)-1)
+        for j in i+1:length(G_sort)
+            g_ia = leading_term(G_sort[i], ordering=o2)
+            g_ja = leading_term(G_sort[j], ordering=o2)
+            #Ensure that g_ia divides g_ja
+            hcf = gcd(g_ia, g_ja)
+            print("hcf: ", g_ia/hcf, "\n")
+            G_sort[j] = G_sort[j] * (g_ia/hcf)
+            g_ja = leading_term(G_sort[j], ordering=o2)
+            #Find the multiple difference and subtract
+            t_bi = g_ja/g_ia
+            print(t_bi)
+            print("(i, j): (",i,",", j, "):    ", G_sort[j], "----->")
+            G_sort[j] = G_sort[j] - G_sort[i] * t_bi
+            G_sort[j] = tighten_simulation.(G_sort[j], Ref(nu_p))
+            print(G_sort[j], "\n")
+            
+        end
+    end
+    return G_sort
+end
+first_set(G_sort)
+hcf
