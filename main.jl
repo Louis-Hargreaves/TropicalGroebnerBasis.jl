@@ -1,5 +1,5 @@
 using Oscar
-#include("functions.jl")
+include("functions.jl")
 
 #Write something which takes a list of polynomials and a performs Oscar.tighten_simulation on them
 
@@ -33,7 +33,6 @@ G_sort = sort(G_red;
             rev=true)
 
 #Perform first set of iterations
-#Perform first set of iterations
 for i in 1:(length(G_sort)-1)
     g_i = G_sort[i]
     LT_g_i = leading_term(g_i, ordering=o1)
@@ -50,10 +49,7 @@ for i in 1:(length(G_sort)-1)
         g_j_ai = coeffs_j[index] * (gen(Rtx, 1) ^ A_j[index][1])
         
         G_sort[j] = ((g_i_ai * g_j)/t_bi) - ((g_j_ai * g_i)/t_bi)
-        if !iszero(G_sort[j])
-            #To do: Fix the tighten_simulation function
-            G_sort[j] = tighten_simulation.(G_sort[j], Ref(nu_p))
-        end
+        G_sort[j] = tighten_simulation.(G_sort[j], Ref(nu_p))
     end
 end
 
