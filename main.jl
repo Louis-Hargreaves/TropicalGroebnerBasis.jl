@@ -1,11 +1,14 @@
 using Oscar
 
 #Start with the polynomial ring
-Rtx, (t, x1, x2, x3, x4, x5) = polynomial_ring(ZZ, [:t, :x1, :x2, :x3, :x4, :x5])
+Rtx, (t, x1, x2, x3, x4) = polynomial_ring(ZZ, [:t, :x1, :x2, :x3, :x4])
 
-p = 2
+#Define the tropical semiring map / valuation
+p = 3
 nu_p = tropical_semiring_map(QQ, p)
-M = [-1 0 0 0 0 0; 0 1 0 0 0 0; 0 0 1 0 0 0; 0 0 0 1 0 0; 0 0 0 0 1 0; 0 0 0 0 0 1]
+
+#Define the ordering
+M = [-1 0 0 0 0; 0 1 0 0 0; 0 0 1 0 0; 0 0 0 1 0; 0 0 0 0 1]
 o1 = matrix_ordering(Rtx, M)
 
 #Define the polynomials
@@ -13,23 +16,20 @@ g1 = x1^2 + t*x2^2 - t^2*x3^2
 g2 = t*x1^2 + x2^2 + (t + t^2)*x3^2
 g3 = t^4*x1^2 + (t^4 + t^5)*x2^2 + t^3*x3^2 
 
-h1 = t*x1^2*x2 + 5*t^2*x2^2*x3 + t^4*x4^2*x1
-h2 = x1^3 + t^7*x2^3 + x5^3
+h1 = x1*x2*x3 + 5*t^7*x1^3 + 17*x2^2*x3
 
-#g4 = (1-t^3)*x1 + t^2*x2
-#g5 = t*x1 + x3
+G = [g1, g2, g3]
+H = [h1]
 
-G = [g1, g2, g3, h1, h2]
-#G = [g3, g2, g1, g4]
-
-function reduction_same_degree(G, nu_p, o1)
-    G_red = tighten_simulation.(G, Ref(nu_p))
+function reduction_same_degree(G, nu_p, o1, sort_req=true)
+    if sort_req
+        G_red = tighten_simulation.(G, Ref(nu_p))
+    end
     G_sort = sort(G_red; 
-            by=(x->leading_monomial(x, ordering=o1)), 
-            lt=((m1, m2) -> cmp(m1, m2) < 0),
-            rev=true)
+    by=(x->leading_monomial(x, ordering=o1)), 
+    lt=((m1, m2) -> cmp(m1, m2) < 0),
+    rev=true)
     #Perform first set of iterations
-    print(G_sort)
     for i in 1:(length(G_sort)-1)
         g_i = G_sort[i]
         LT_g_i = leading_term(g_i, ordering=o1)
@@ -53,10 +53,8 @@ function reduction_same_degree(G, nu_p, o1)
             end
         end
     end
-
     #Perform second set of iterations
     for i in 1:(length(G_sort)-1)
-        #g_i = G_sort[i]
         for j in i+1:length(G_sort)
             g_i = G_sort[i]
             g_j = G_sort[j]
@@ -83,7 +81,7 @@ function reduction_same_degree(G, nu_p, o1)
     return G_sort
 end
 
-#G_sort = reduction_same_degree(G, nu_p, o1)
+#AI tool used for this function
 function integer_solutions(n, k)
     if k == 1
         return [[n]]  # Only one variable left, so it must be n
@@ -95,32 +93,38 @@ function integer_solutions(n, k)
             push!(solutions, [x; rest])  # Combine x with the rest of the solution
         end
     end
-
     return solutions
 end
 
-function reduction_at_once(G, nu_p, o1)
+function reduction_at_once(G, H, nu_p, o1)
     E = []
     #Record the highest degree
-    LT_G = leading_exponent.(G)
-    nvars = length(LT_G[1]) - 1
-    d = [sum(LT_G[i][2:end]) for i in 1:length(LT_G)]
-    d = maximum(d)
+    leading_exponents = leading_exponent.(G, ordering=o1)
+    d = sum(collect(exponents(H[1]))[1][2:end])
     #Loop through all alpha = degree d 
-    alpha = integer_solutions(d, nvars)
+    nvars_in_x = length(leading_exponents[1]) - 1
+    #Generates all |α| = d
+    alpha = integer_solutions(d, nvars_in_x)
     for a in alpha
-        tb_xa = 0
-        #Prepare for the if statement
-        for (i,LT_g) in enumerate(LT_G)
-            if minimum(a - LT_g[2:end]) > -1
-                g = G[i]
-                tb_xa = gen(Rtx, 1) ^ LT_g[1] * prod(gens(Rtx)[2:end].^a)
-                println("tb_xa: ", tb_xa)
-                push!(E, tb_xa * g / leading_term(g, ordering=o1))
+        #Pick g
+        for (g, expv) in zip(G, leading_exponents)
+            #Checking if t^b x^a is in LT_G
+            if all(a .>=  expv[2:end])
+                tb_xa = gen(Rtx, 1) ^ expv[1] * prod(gens(Rtx)[2:end].^a)
+                push!(E, g * (tb_xa / prod(gens(Rtx).^expv)) )
                 break
             end
         end
-
     end
+    #Perform the reduction
+    H_U_E = vcat(H, E)
+    H_U_E_tightened = tighten_simulation.(H_U_E, Ref(nu_p))
+    sigma = sortperm(H_U_E_tightened; 
+            by=(x->leading_monomial(x, ordering=o1)), 
+            lt=((m1, m2) -> cmp(m1, m2) < 0),
+            rev=true)
+    H_U_E_red = reduction_same_degree(H_U_E_tightened, nu_p, o1)
+    return [H_U_E_red[i] for i in sigma if sigma[i] in 1:length(H)]
 end
-reduction_at_once(G, nu_p, o1)
+
+reduction_same_degree(G, nu_p, o1)
